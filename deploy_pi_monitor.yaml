@@ -1,7 +1,7 @@
 - name: Deploy pi-monitor
   hosts: pi_hosts
   remote_user: pi
-  
+
   tasks:
     - name: Ping
       action: ping
@@ -43,6 +43,15 @@
         group: root
         force: true   # default is true, just in case
         remote_src: true
+      become: true
+      become_user: root
+
+    - name: Touch log file
+      ansible.builtin.file:
+        path: /var/log/pi-reporter.log
+        owner: pi
+        group: pi
+        state: touch
       become: true
       become_user: root
 
