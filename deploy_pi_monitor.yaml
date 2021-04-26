@@ -1,0 +1,55 @@
+- name: Deploy pi-monitor
+  hosts: pi_hosts
+  remote_user: pi
+  
+  tasks:
+    - name: Ping
+      action: ping
+
+    - name: Clone pi-reporter git repository
+      ansible.builtin.git:
+        repo: https://github.com/DPinato/pi-reporter.git
+        dest: /tmp/pi-reporter
+
+    - name: Build pi-reporter executable
+      ansible.builtin.command: /usr/local/go/bin/go build pi-reporter.go
+      args:
+        chdir: /tmp/pi-reporter/
+    
+    - name: Create directory for pi-reporter executable
+      file:
+        path: /usr/local/bin/pi-reporter
+        state: directory
+        owner: pi
+        group: pi
+        mode: '0755'
+      become: true
+      become_user: root
+
+    - name: Update pi-reporter executable
+      ansible.builtin.copy:
+        src: /tmp/pi-reporter/pi-reporter
+        dest: /usr/local/bin/pi-reporter/pi-reporter
+        mode: '0775'
+        force: true   # default is true, just in case
+        remote_src: true
+
+    - name: Update pi-reporter service file
+      ansible.builtin.copy:
+        src: /tmp/pi-reporter/Automation/pi-reporter.service
+        dest: /etc/systemd/system/pi-reporter.service
+        mode: '0644'
+        owner: root
+        group: root
+        force: true   # default is true, just in case
+        remote_src: true
+      become: true
+      become_user: root
+
+    - name: Restart pi-reporter service
+      ansible.builtin.service:
+        name: pi-reporter
+        enabled: true
+        state: restarted
+      become: true
+      become_user: root

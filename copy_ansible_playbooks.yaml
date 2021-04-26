@@ -1,0 +1,14 @@
+- name: Copy Ansible playbooks
+  hosts: testhosts
+  remote_user: pi
+
+  tasks:
+    - name: Ping
+      action: ping
+
+    - name: Copy Ansible playbooks
+      ansible.builtin.copy:
+        src: /Users/davide/Desktop/Code/Ansible/
+        dest: /home/pi/Ansible/
+        mode: '0775'
+        remote_src: false

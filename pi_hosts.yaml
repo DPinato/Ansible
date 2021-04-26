@@ -1,0 +1,21 @@
+all:
+  hosts:
+    mail.example.com:
+  children:
+    pi_hosts:
+      hosts:
+        192.168.128.80:
+        192.168.128.200:
+        192.168.128.201:
+    pi_hole:
+      hosts:
+        192.168.128.200:
+    pi_plex:
+      hosts:
+        192.168.128.80:
+    grafana:
+      hosts:
+        192.168.128.200:
+    testhosts:
+      hosts:
+        192.168.128.80:

@@ -1,0 +1,12 @@
+- name: Deploy pi-monitor
+  hosts: pi_hosts
+  remote_user: pi
+
+tasks:
+  - name: Ping
+  action: ping
+
+- name: Deploy SSH Key
+    authorized_key: user=pi
+                    key="{{ lookup('file', '/home/devops/.ssh/id_rsa.pub') }}"
+                    state=present
