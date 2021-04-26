@@ -1,0 +1,14 @@
+- name: Install packages on Linux machines
+  hosts: pi_hosts
+  remote_user: pi
+
+  tasks:
+    - name: Ping
+      action: ping
+  
+    - name: Install rsync
+      become: true
+      become_user: root
+      ansible.builtin.package:
+        name: rsync
+        state: present
