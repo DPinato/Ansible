@@ -1,5 +1,5 @@
 - name: Deploy pi-monitor
-  hosts: pi_hosts
+  hosts: pi_hosts:!pi_plex
   remote_user: pi
 
 tasks:
@@ -8,5 +8,5 @@ tasks:
 
 - name: Deploy SSH Key
     authorized_key: user=pi
-                    key="{{ lookup('file', '/home/devops/.ssh/id_rsa.pub') }}"
+                    key="{{ lookup('file', '/home/pi/.ssh/id_rsa.pub') }}"
                     state=present
