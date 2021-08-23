@@ -1,5 +1,5 @@
 - name: Deploy pi-monitor
-  hosts: pi_hosts
+  hosts: testhosts
   remote_user: pi
 
   tasks:
@@ -34,7 +34,7 @@
         force: true   # default is true, just in case
         remote_src: true
 
-    - name: Update pi-reporter service file
+    - name: Move pi-reporter service file
       ansible.builtin.copy:
         src: /tmp/pi-reporter/Automation/pi-reporter.service
         dest: /etc/systemd/system/pi-reporter.service
@@ -43,6 +43,15 @@
         group: root
         force: true   # default is true, just in case
         remote_src: true
+      become: true
+      become_user: root
+
+    - name: Update pi-reporter service file with ExecStart command
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/system/pi-reporter.service
+        insertafter: '^\User=pi'
+        line: "ExecStart=/usr/local/bin/pi-reporter/pi-reporter --env prod --influxhost 192.168.128.48"
+        state: present
       become: true
       become_user: root
 
