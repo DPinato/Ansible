@@ -1,5 +1,5 @@
 - name: Deploy pi-monitor
-  hosts: testhosts
+  hosts: pi_plex
   remote_user: pi
 
   tasks:
