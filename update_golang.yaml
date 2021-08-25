@@ -1,0 +1,19 @@
+- name: Update golang through script
+  hosts: testwifi
+  remote_user: pi
+
+  tasks:
+    - name: Ping
+      action: ping
+
+    - name: Clone update-golang git repository
+      ansible.builtin.git:
+        repo: https://github.com/udhos/update-golang
+        dest: /tmp/update-golang
+    
+    - name: Run update-golang script
+      ansible.builtin.command: sudo ./update-golang.sh
+      become: true
+      become_user: root
+      args:
+        chdir: /tmp/update-golang/
