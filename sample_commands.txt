@@ -1,0 +1,10 @@
+ansible pi_hosts -m ping -i hostfiles/pi_hosts.yaml
+ansible-playbook install_packages.yaml -i hostfiles/pi_hosts.yaml
+
+ansible-playbook deploy_pi_monitor.yaml -i hostfiles/pi_hosts.yaml
+ansible-playbook update_golang.yaml -i hostfiles/pi_hosts.yaml
+ansible-playbook update_golang.yaml -i hostfiles/pi_hosts.yaml --limit pi_plex
+
+ansible-playbook install_packages.yaml -i hostfiles/pi_hosts.yaml --limit pi_plex
+
+
