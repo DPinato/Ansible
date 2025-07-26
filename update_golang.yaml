@@ -1,18 +1,27 @@
 - name: Update golang through script
-  hosts: testwifi
+  hosts: pi_hosts
   remote_user: pi
 
   tasks:
     - name: Ping
       action: ping
 
+    - name: Add GOPATH to .bashrc
+      blockinfile:
+        dest: "{{ ansible_env.HOME }}/.bashrc"
+        block: |
+          export GOPATH=/home/pi/go
+        marker: '# {mark} ANSIBLE MANAGED BLOCK - GOPATH'
+        insertbefore: BOF
+        create: yes
+
     - name: Clone update-golang git repository
       ansible.builtin.git:
         repo: https://github.com/udhos/update-golang
         dest: /tmp/update-golang
-    
+
     - name: Run update-golang script
-      ansible.builtin.command: sudo ./update-golang.sh
+      ansible.builtin.command: ./update-golang.sh
       become: true
       become_user: root
       args:
