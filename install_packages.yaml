@@ -5,10 +5,52 @@
   tasks:
     - name: Ping
       action: ping
-  
+
+    - name: Install latest python3
+      become: true
+      become_user: root
+      ansible.builtin.package:
+        name: python3
+        state: present
+
     - name: Install rsync
       become: true
       become_user: root
       ansible.builtin.package:
         name: rsync
+        state: present
+
+    - name: Install git
+      become: true
+      become_user: root
+      ansible.builtin.package:
+        name: git
+        state: present
+
+    - name: Install tmux
+      become: true
+      become_user: root
+      ansible.builtin.package:
+        name: tmux
+        state: present
+
+    - name: Install iperf 2
+      become: true
+      become_user: root
+      ansible.builtin.package:
+        name: iperf
+        state: present
+
+    - name: Install iperf 3
+      become: true
+      become_user: root
+      ansible.builtin.package:
+        name: iperf3
+        state: present
+
+    - name: Install lsof
+      become: true
+      become_user: root
+      ansible.builtin.package:
+        name: lsof
         state: present
