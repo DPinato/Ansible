@@ -1,5 +1,5 @@
 - name: Deploy pi-monitor
-  hosts: pi_plex
+  hosts: pi_hosts
   remote_user: pi
 
   tasks:
@@ -49,9 +49,14 @@
     - name: Update pi-reporter service file with ExecStart command
       ansible.builtin.lineinfile:
         path: /etc/systemd/system/pi-reporter.service
-        insertafter: '^\User=pi'
-        line: "ExecStart=/usr/local/bin/pi-reporter/pi-reporter --env prod --influxhost 192.168.128.48"
+        insertafter: 'User=pi'
+        line: "ExecStart=/usr/local/bin/pi-reporter/pi-reporter --env prod --influxhost pi-2.local"
         state: present
+      become: true
+      become_user: root
+
+    - name: Reload units for service files
+      ansible.builtin.command: systemctl daemon-reload
       become: true
       become_user: root
 
