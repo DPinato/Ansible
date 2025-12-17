@@ -7,4 +7,5 @@ ansible-playbook update_golang.yaml -i hostfiles/pi_hosts.yaml --limit pi_plex
 
 ansible-playbook install_packages.yaml -i hostfiles/pi_hosts.yaml --limit pi_plex
 
-
+ansible-playbook create_ufaa_user.yaml -i hostfiles/pi_hosts.yaml --limit testhosts
+ansible-playbook create_ufaa_user.yaml -i hostfiles/pi_hosts.yaml --limit testhosts --ask-pass
