@@ -1,33 +1,34 @@
- all:
-  children:
-    pi_hosts_local_dns:
-      hosts:
-        pi-1.local:
-        pi-2.local:
-        pi-3.local:
-        pi-4.local:
-        pi5-1.local:
-        pi5-2.local:
+pi_hosts_local_dns:
+  hosts:
+    pi-1.local:
+    pi-2.local:
+    pi-3.local:
+    pi-4.local:
+    pi5-1.local:
+    pi5-2.local:
 
-    pi_hosts:
-      hosts:
-        192.168.128.75:
-        192.168.128.49:
-        192.168.128.62:
-        192.168.128.80:
-        192.168.128.210:
-        192.168.128.211:
+pi_hosts:
+  vars:
+    ansible_user: pi
+  hosts:
+    192.168.128.75:
+    192.168.128.49:
+    192.168.128.62:
+    192.168.128.80:
+    192.168.128.210:
+    192.168.128.211:
 
-    new_pi_hosts:
-      hosts:
-        192.168.128.210:
-        # 192.168.128.211:
+new_pi_hosts:
+  hosts:
+    192.168.1.250:
 
-    grafana:
-      hosts:
-        192.168.128.49:
+grafana:
+  hosts:
+    192.168.128.49:
 
-    testhost:
-      hosts:
-        192.168.128.211:
+besozzo_pi:
+  vars:
+    ansible_user: pi
+  hosts:
+    192.168.1.250:
 

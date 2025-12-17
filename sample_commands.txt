@@ -7,5 +7,12 @@ ansible-playbook update_golang.yaml -i hostfiles/pi_hosts.yaml --limit pi_plex
 
 ansible-playbook install_packages.yaml -i hostfiles/pi_hosts.yaml --limit pi_plex
 
-ansible-playbook create_ufaa_user.yaml -i hostfiles/pi_hosts.yaml --limit testhosts
-ansible-playbook create_ufaa_user.yaml -i hostfiles/pi_hosts.yaml --limit testhosts --ask-pass
+ansible-playbook create_ufaa_user.yaml -i hostfiles/pi_hosts.yaml --limit besozzo_pi
+ansible-playbook create_ufaa_user.yaml -i hostfiles/pi_hosts.yaml -i hostfiles/pi_hosts.yaml --limit testhosts --ask-pass
+
+ansible besozzo_pi -m ping -i hostfiles/pi_hosts.yaml
+
+
+ansible-inventory -i hostfiles/pi_hosts.yaml --graph
+ansible -i hostfiles/pi_hosts.yaml testhosts --list-hosts
+
