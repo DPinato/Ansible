@@ -1,34 +1,35 @@
-pi_hosts_local_dns:
-  hosts:
-    pi-1.local:
-    pi-2.local:
-    pi-3.local:
-    pi-4.local:
-    pi5-1.local:
-    pi5-2.local:
-
-pi_hosts:
+uk_pi_hosts:
   vars:
     ansible_user: pi
   hosts:
-    192.168.128.75:
-    192.168.128.49:
-    192.168.128.62:
-    192.168.128.80:
-    192.168.128.210:
-    192.168.128.211:
-
-new_pi_hosts:
-  hosts:
-    192.168.1.250:
-
-grafana:
-  hosts:
-    192.168.128.49:
+    pi-1:
+      ansible_host: 192.168.128.75
+    pi-2:
+      ansible_host: 192.168.128.49
+    pi-3:
+      ansible_host: 192.168.128.62
+    pi-4:
+      ansible_host: 192.168.128.80
+    kali-raspberrypi:
+      ansible_user: kali
+      ansible_host: 192.168.128.210
+    pi5-2:
+      ansible_host: 192.168.128.211
 
 besozzo_pi:
   vars:
     ansible_user: pi
   hosts:
-    192.168.1.250:
+    pi-besozzo:
+      ansible_host: 10.0.255.100
 
+test_hosts:
+  hosts:
+    kali-raspberrypi:
+      ansible_host: 192.168.128.210
+      ansible_user: kali
+
+
+grafana:
+  hosts:
+    192.168.128.49:
