@@ -1,0 +1,100 @@
+# configure_chrony.yml
+---
+- name: Configure Chrony NTP on test Raspberry Pis
+  hosts: all
+  become: true
+
+  vars:
+    chrony_config: /etc/chrony/chrony.conf
+    chrony_sources_dir: /etc/chrony/sources.d
+    chrony_sources_file: /etc/chrony/sources.d/public-ntp.sources
+
+    ntp_servers:
+      - "server time.cloudflare.com iburst minpoll 8 maxpoll 10"
+      - "server time.google.com iburst minpoll 8 maxpoll 10"
+      - "server 0.uk.pool.ntp.org iburst minpoll 8 maxpoll 10"
+
+  tasks:
+    - name: Install Chrony
+      ansible.builtin.apt:
+        name: chrony
+        state: present
+        update_cache: true
+
+    - name: Disable systemd-timesyncd
+      ansible.builtin.systemd:
+        name: systemd-timesyncd
+        enabled: false
+        state: stopped
+      failed_when: false
+
+    - name: Disable the default Debian NTP pool
+      ansible.builtin.replace:
+        path: "{{ chrony_config }}"
+        regexp: '^(\s*)pool\s+2\.debian\.pool\.ntp\.org\s+iburst\s*$'
+        replace: '# pool 2.debian.pool.ntp.org iburst'
+      notify: Restart Chrony
+
+    - name: Disable DHCP-provided Chrony sources
+      ansible.builtin.replace:
+        path: "{{ chrony_config }}"
+        regexp: '^(\s*)sourcedir\s+/run/chrony-dhcp\s*$'
+        replace: '# sourcedir /run/chrony-dhcp'
+      notify: Restart Chrony
+
+    - name: Ensure custom sources directory exists
+      ansible.builtin.file:
+        path: "{{ chrony_sources_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Enable custom Chrony sources directory
+      ansible.builtin.lineinfile:
+        path: "{{ chrony_config }}"
+        line: "sourcedir /etc/chrony/sources.d"
+        state: present
+      notify: Restart Chrony
+
+    - name: Configure custom NTP servers
+      ansible.builtin.copy:
+        dest: "{{ chrony_sources_file }}"
+        content: "{{ ntp_servers | join('\n') }}\n"
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart Chrony
+
+    - name: Enable and start Chrony
+      ansible.builtin.systemd:
+        name: chrony
+        enabled: true
+        state: started
+
+    - name: Apply pending Chrony configuration changes
+      ansible.builtin.meta: flush_handlers
+
+    - name: Check Chrony tracking status
+      ansible.builtin.command: chronyc tracking
+      register: chrony_tracking
+      changed_when: false
+
+    - name: Display Chrony tracking status
+      ansible.builtin.debug:
+        var: chrony_tracking.stdout
+
+    - name: Check active Chrony sources
+      ansible.builtin.command: chronyc sources -v
+      register: chrony_sources
+      changed_when: false
+
+    - name: Display active Chrony sources
+      ansible.builtin.debug:
+        var: chrony_sources.stdout
+
+  handlers:
+    - name: Restart Chrony
+      ansible.builtin.systemd:
+        name: chrony
+        state: restarted
