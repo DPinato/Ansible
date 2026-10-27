@@ -1,7 +1,16 @@
+
+---
 - name: Install Docker Engine and Docker Compose
   hosts: all
   become: true
   gather_facts: true
+
+  vars:
+    docker_compose_version: "v5.6.1"
+    docker_compose_asset: "docker-compose-linux-aarch64"
+    docker_compose_plugin_dir: "/usr/local/lib/docker/cli-plugins"
+    docker_compose_plugin_path: "/usr/local/lib/docker/cli-plugins/docker-compose"
+    docker_compose_download_path: "/tmp/docker-compose-linux-aarch64"
 
   tasks:
     - name: Ensure the OS is Debian-based
@@ -9,6 +18,12 @@
         that:
           - ansible_facts['os_family'] == "Debian"
         fail_msg: "This playbook is intended for Debian-based systems."
+
+    - name: Ensure the system is ARM64
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['architecture'] == "aarch64"
+        fail_msg: "This playbook currently supports 64-bit ARM (aarch64) only."
 
     - name: Configure archived Bullseye security repository
       ansible.builtin.replace:
@@ -24,11 +39,10 @@
         update_cache: true
         cache_valid_time: 0
 
-    - name: Install Docker Engine and Docker Compose
+    - name: Install Docker Engine
       ansible.builtin.apt:
         name:
           - docker.io
-          - docker-compose
         state: present
 
     - name: Enable and start Docker
@@ -37,8 +51,36 @@
         enabled: true
         state: started
 
+    - name: Create Docker CLI plugin directory
+      ansible.builtin.file:
+        path: "{{ docker_compose_plugin_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Download Docker Compose binary and verify checksum
+      ansible.builtin.get_url:
+        url: "https://github.com/docker/compose/releases/download/{{ docker_compose_version }}/{{ docker_compose_asset }}"
+        dest: "{{ docker_compose_download_path }}"
+        checksum: "sha256:https://github.com/docker/compose/releases/download/{{ docker_compose_version }}/checksums.txt"
+        owner: root
+        group: root
+        mode: "0644"
+      register: compose_download
+
+    - name: Install Docker Compose CLI plugin
+      ansible.builtin.copy:
+        src: "{{ docker_compose_download_path }}"
+        dest: "{{ docker_compose_plugin_path }}"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0755"
+
     - name: Check Docker version
-      ansible.builtin.command: docker --version
+      ansible.builtin.command:
+        cmd: docker --version
       register: docker_version
       changed_when: false
 
@@ -47,7 +89,8 @@
         msg: "{{ docker_version.stdout }}"
 
     - name: Check Docker Compose version
-      ansible.builtin.command: docker-compose --version
+      ansible.builtin.command:
+        cmd: docker compose version
       register: compose_version
       changed_when: false
 
