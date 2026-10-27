@@ -1,6 +1,5 @@
 - name: Update golang through script
-  hosts: pi_hosts
-  remote_user: pi
+  hosts: all
 
   tasks:
     - name: Ping
