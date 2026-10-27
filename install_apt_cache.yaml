@@ -1,0 +1,45 @@
+
+---
+- name: Deploy APT package cache on pi-1
+  hosts: apt_cache_host
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Create persistent cache directory
+      ansible.builtin.file:
+        path: /opt/apt-cacher-ng/cache
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Create deployment directory
+      ansible.builtin.file:
+        path: /opt/apt-cacher-ng
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Copy Docker Compose configuration
+      ansible.builtin.copy:
+        src: files/apt-cache/docker-compose.yaml
+        dest: /opt/apt-cacher-ng/docker-compose.yaml
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Pull package cache image
+      ansible.builtin.command:
+        cmd: docker-compose -f docker-compose.yaml pull
+        chdir: /opt/apt-cacher-ng
+      register: pull_result
+      changed_when: "'Downloaded newer image' in pull_result.stdout or 'Pull complete' in pull_result.stdout"
+
+    - name: Start package cache
+      ansible.builtin.command:
+        cmd: docker-compose -f docker-compose.yaml up -d
+        chdir: /opt/apt-cacher-ng
+      register: compose_result
+      changed_when: "'Creating' in compose_result.stdout or 'Recreating' in compose_result.stdout or 'Starting' in compose_result.stdout"

@@ -1,0 +1,15 @@
+version: "2"
+
+services:
+  apt-cacher-ng:
+    image: mbentley/apt-cacher-ng:latest
+    container_name: apt-cacher-ng
+    restart: unless-stopped
+    ports:
+      - "3142:3142"
+    environment:
+      TZ: Europe/London
+      PUID: "0"
+      PGID: "0"
+    volumes:
+      - /opt/apt-cacher-ng/cache:/var/cache/apt-cacher-ng

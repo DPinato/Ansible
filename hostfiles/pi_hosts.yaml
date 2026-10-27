@@ -29,6 +29,10 @@ test_hosts:
       ansible_host: 192.168.128.210
       ansible_user: kali
 
+apt_cache_host:
+  hosts:
+    pi-1:
+      ansible_host: 192.168.128.75
 
 grafana:
   hosts:
