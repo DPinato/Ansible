@@ -1,0 +1,176 @@
+# Phase 1: Prepare the Raspberry Pis.
+# Reboot sequentially if cgroup settings need changing.
+- name: Prepare Raspberry Pis for K3s
+  hosts: all
+  become: true
+  gather_facts: true
+  serial: 1
+
+  vars:
+    k3s_cmdline_path: /boot/cmdline.txt
+
+  tasks:
+    - name: Check that these are 64-bit Debian-based Pis
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['os_family'] == "Debian"
+          - ansible_facts['architecture'] == "aarch64"
+        fail_msg: >-
+          This playbook expects 64-bit Debian-based Raspberry Pi OS.
+
+    - name: Check that the Bullseye boot command line exists
+      ansible.builtin.stat:
+        path: "{{ k3s_cmdline_path }}"
+      register: k3s_cmdline_file
+
+    - name: Stop if the boot command line is not at the expected path
+      ansible.builtin.assert:
+        that:
+          - k3s_cmdline_file.stat.exists
+        fail_msg: >-
+          Could not find /boot/cmdline.txt. Check the OS boot
+          layout before continuing.
+
+    - name: Remove memory cgroup disable flag if present
+      ansible.builtin.replace:
+        path: "{{ k3s_cmdline_path }}"
+        regexp: '(^|\s)cgroup_disable=memory(?=\s|$)'
+        replace: '\1'
+      register: k3s_cgroup_disable
+
+    - name: Enable memory cgroups if missing
+      ansible.builtin.replace:
+        path: "{{ k3s_cmdline_path }}"
+        regexp: '^(?!.*\bcgroup_memory=1)(.*)$'
+        replace: '\1 cgroup_memory=1'
+      register: k3s_cgroup_memory
+
+    - name: Enable cgroup support if missing
+      ansible.builtin.replace:
+        path: "{{ k3s_cmdline_path }}"
+        regexp: '^(?!.*\bcgroup_enable=memory)(.*)$'
+        replace: '\1 cgroup_enable=memory'
+      register: k3s_cgroup_enable
+
+    - name: Reboot if cgroup boot parameters changed
+      ansible.builtin.reboot:
+      when: >
+        k3s_cgroup_disable.changed or
+        k3s_cgroup_memory.changed or
+        k3s_cgroup_enable.changed
+
+    - name: Ensure curl is installed
+      ansible.builtin.apt:
+        name: curl
+        state: present
+        update_cache: false
+
+
+# Phase 2: Install the K3s server on pi5-2.
+- name: Install K3s control plane
+  hosts: pi5-2
+  become: true
+  gather_facts: true
+
+  vars:
+    k3s_server_address: >-
+      {{ hostvars['pi5-2'].ansible_host | default('pi5-2') }}
+
+  tasks:
+    - name: Check whether the K3s server service already exists
+      ansible.builtin.stat:
+        path: /etc/systemd/system/k3s.service
+      register: k3s_server_service
+
+    - name: Install K3s server
+      ansible.builtin.shell: |
+        set -o pipefail
+        curl -sfL https://get.k3s.io | sh -
+      args:
+        executable: /bin/bash
+        creates: /etc/systemd/system/k3s.service
+
+    - name: Ensure K3s server is enabled and running
+      ansible.builtin.systemd:
+        name: k3s
+        enabled: true
+        state: started
+
+    - name: Wait for Kubernetes API to become available
+      ansible.builtin.wait_for:
+        host: "{{ ansible_default_ipv4.address }}"
+        port: 6443
+        timeout: 180
+
+    - name: Read the K3s node join token
+      ansible.builtin.slurp:
+        src: /var/lib/rancher/k3s/server/node-token
+      register: k3s_node_token
+      no_log: true
+
+    - name: Fetch kubeconfig to the MacBook
+      ansible.builtin.fetch:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: "{{ playbook_dir }}/kubeconfig-k3s"
+        flat: true
+
+    - name: Update kubeconfig to use pi5-2's reachable address
+      ansible.builtin.replace:
+        path: "{{ playbook_dir }}/kubeconfig-k3s"
+        regexp: 'https://127\.0\.0\.1:6443'
+        replace: "https://{{ k3s_server_address }}:6443"
+      delegate_to: localhost
+      become: false
+
+    - name: Protect the local kubeconfig
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/kubeconfig-k3s"
+        mode: "0600"
+      delegate_to: localhost
+      become: false
+
+
+# Phase 3: Join every other inventory host as a worker.
+- name: Join worker nodes to K3s
+  hosts: "all:!pi5-2"
+  become: true
+  gather_facts: true
+
+  vars:
+    k3s_server_address: >-
+      {{ hostvars['pi5-2'].ansible_host | default('pi5-2') }}
+    k3s_server_url: "https://{{ k3s_server_address }}:6443"
+    k3s_join_token: >-
+      {{ hostvars['pi5-2']['k3s_node_token']['content'] | b64decode | trim }}
+
+  tasks:
+    - name: Check whether the K3s agent service already exists
+      ansible.builtin.stat:
+        path: /etc/systemd/system/k3s-agent.service
+      register: k3s_agent_service
+
+    - name: Wait for the server API to be reachable
+      ansible.builtin.wait_for:
+        host: "{{ k3s_server_address }}"
+        port: 6443
+        timeout: 180
+
+    - name: Install and join K3s agent
+      ansible.builtin.shell: |
+        set -o pipefail
+        curl -fL --connect-timeout 10 --retry 2 https://get.k3s.io | sh -
+      args:
+        executable: /bin/bash
+      environment:
+        INSTALL_K3S_EXEC: agent
+        K3S_URL: "{{ k3s_server_url }}"
+        K3S_TOKEN: "{{ k3s_join_token }}"
+      register: k3s_agent_install
+      async: 900
+      poll: 10
+
+    - name: Ensure K3s agent is enabled and running
+      ansible.builtin.systemd:
+        name: k3s-agent
+        enabled: true
+        state: started
