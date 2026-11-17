@@ -1,39 +1,70 @@
-uk_pi_hosts:
-  vars:
-    ansible_user: pi
-  hosts:
-    pi-1:
-      ansible_host: 192.168.128.75
-    pi-2:
-      ansible_host: 192.168.128.49
-    pi-3:
-      ansible_host: 192.168.128.62
-    pi-4:
-      ansible_host: 192.168.128.80
-    kali-raspberrypi:
-      ansible_user: kali
-      ansible_host: 192.168.128.210
-    pi5-2:
-      ansible_host: 192.168.128.211
 
-besozzo_pi:
-  vars:
-    ansible_user: pi
-  hosts:
-    pi-besozzo:
-      ansible_host: 10.0.255.100
+all:
+  children:
 
-test_hosts:
-  hosts:
-    kali-raspberrypi:
-      ansible_host: 192.168.128.210
-      ansible_user: kali
+    # ASN 65000
+    AS65000:
+      vars:
+        bgp_asn: 65000
+        wg_ipv6_prefix: "fd7f:202e:7f59:fde8"
+      hosts:
+        pi-1:
+          ansible_host: 192.168.128.75
+          ansible_user: pi
+          wg_ipv6_address: "fd7f:202e:7f59:fde8::1/128"
+          wg_endpoint: "192.168.128.75:51821"
+        pi-2:
+          ansible_host: 192.168.128.49
+          ansible_user: pi
+          wg_ipv6_address: "fd7f:202e:7f59:fde8::2/128"
+          wg_endpoint: "192.168.128.49:51821"
+        pi-3:
+          ansible_host: 192.168.128.62
+          ansible_user: pi
+          wg_ipv6_address: "fd7f:202e:7f59:fde8::3/128"
+          wg_endpoint: "192.168.128.62:51821"
+        pi-4:
+          ansible_host: 192.168.128.80
+          ansible_user: pi
+          wg_ipv6_address: "fd7f:202e:7f59:fde8::4/128"
+          wg_endpoint: "192.168.128.80:51821"
+        pi5-2:
+          ansible_host: 192.168.128.211
+          ansible_user: pi
+          wg_ipv6_address: "fd7f:202e:7f59:fde8::52/128"
+          wg_endpoint: "192.168.128.211:51821"
 
-apt_cache_host:
-  hosts:
-    pi-1:
-      ansible_host: 192.168.128.75
+    # ASN 65001 - Wi-Fi Raspberry Pi
+    AS65001:
+      vars:
+        bgp_asn: 65001
+        wg_ipv6_prefix: "fd7f:202e:7f59:fde9"
+      hosts:
+        kali-raspberrypi:
+          ansible_host: 192.168.128.210
+          ansible_user: kali
+          wg_ipv6_address: "fd7f:202e:7f59:fde9::51/128"
 
-grafana:
-  hosts:
-    192.168.128.49:
+    # ASN 65100 - Besozzo Raspberry Pi
+    AS65100:
+      vars:
+        bgp_asn: 65100
+        wg_ipv6_prefix: "fd7f:202e:7f59:fe4c"
+      hosts:
+        pi-besozzo:
+          ansible_host: 10.0.255.100
+          ansible_user: pi
+          wg_ipv6_address: "fd7f:202e:7f59:fe4c::100/128"
+
+    # Other functional groups
+    test_hosts:
+      hosts:
+        kali-raspberrypi:
+
+    apt_cache_host:
+      hosts:
+        pi-1:
+
+    grafana:
+      hosts:
+        pi-2:
