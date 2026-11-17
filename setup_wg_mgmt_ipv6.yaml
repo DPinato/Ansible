@@ -1,0 +1,219 @@
+
+---
+# ============================================================
+# PLAY 1: Generate keys and collect public keys from all hosts
+# ============================================================
+
+- name: Generate WireGuard keys and collect public keys
+  hosts: all
+  become: true
+  gather_facts: false
+  tags:
+    - collect_keys
+
+  vars:
+    wf_iface: wg_mgmt_ipv6
+
+    wg_base_dir: /etc/wireguard
+    wg_keys_dir: /etc/wireguard/keys
+    wg_configs_dir: /etc/wireguard/configs
+
+    wg_private_key: "{{ wg_keys_dir }}/{{ wf_iface }}_priv"
+    wg_public_key: "{{ wg_keys_dir }}/{{ wf_iface }}_pub"
+
+    wg_public_keys_controller_dir: "{{ playbook_dir }}/.wg-public-keys"
+
+  tasks:
+
+    - name: Check that WireGuard is installed
+      ansible.builtin.command: wg --version
+      changed_when: false
+
+    - name: Check required inventory variables
+      ansible.builtin.assert:
+        that:
+          - wg_ipv6_address is defined
+          - wg_endpoint is defined
+        fail_msg: >
+          Define wg_ipv6_address and wg_endpoint
+          for {{ inventory_hostname }}.
+
+    - name: Create WireGuard directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      loop:
+        - "{{ wg_base_dir }}"
+        - "{{ wg_keys_dir }}"
+        - "{{ wg_configs_dir }}"
+
+    - name: Generate private key if missing
+      ansible.builtin.shell: "wg genkey > {{ wg_private_key }}"
+      args:
+        creates: "{{ wg_private_key }}"
+      no_log: true
+
+    - name: Set private key permissions
+      ansible.builtin.file:
+        path: "{{ wg_private_key }}"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Read private key
+      ansible.builtin.slurp:
+        src: "{{ wg_private_key }}"
+      register: wg_private_key_data
+      no_log: true
+
+    - name: Generate public key from private key
+      ansible.builtin.command:
+        argv:
+          - wg
+          - pubkey
+        stdin: "{{ wg_private_key_data.content | b64decode | trim }}"
+      register: wg_public_key_result
+      changed_when: false
+      no_log: true
+
+    - name: Save public key
+      ansible.builtin.copy:
+        content: "{{ wg_public_key_result.stdout }}\n"
+        dest: "{{ wg_public_key }}"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Confirm public key exists
+      ansible.builtin.stat:
+        path: "{{ wg_public_key }}"
+      register: wg_public_key_stat
+
+    - name: Verify public key exists
+      ansible.builtin.assert:
+        that:
+          - wg_public_key_stat.stat.exists
+        fail_msg: >
+          Public key was not created on {{ inventory_hostname }}.
+
+    - name: Fetch public key to Ansible controller
+      ansible.builtin.fetch:
+        src: "{{ wg_public_key }}"
+        dest: "{{ wg_public_keys_controller_dir }}/{{ inventory_hostname }}.pub"
+        flat: true
+
+
+# ============================================================
+# PLAY 2: Generate WireGuard configurations
+# ============================================================
+
+- name: Generate WireGuard management interface configurations
+  hosts: all
+  become: true
+  gather_facts: false
+  tags:
+    - configure
+
+  vars:
+    wf_iface: wg_mgmt_ipv6
+
+    wg_keys_dir: /etc/wireguard/keys
+    wg_configs_dir: /etc/wireguard/configs
+
+    wg_private_key: "{{ wg_keys_dir }}/{{ wf_iface }}_priv"
+
+    wg_public_keys_controller_dir: "{{ playbook_dir }}/.wg-public-keys"
+
+    wg_listen_port: 51821
+
+  tasks:
+
+    - name: Read local private key
+      ansible.builtin.slurp:
+        src: "{{ wg_private_key }}"
+      register: wg_local_private_key
+      no_log: true
+
+    - name: Generate WireGuard configuration
+      ansible.builtin.template:
+        src: files/templates/wg_mgmt_ipv6.conf.j2
+        dest: "{{ wg_configs_dir }}/{{ wf_iface }}.conf"
+        owner: root
+        group: root
+        mode: "0600"
+      no_log: true
+
+    - name: Install active WireGuard configuration
+      ansible.builtin.copy:
+        src: "{{ wg_configs_dir }}/{{ wf_iface }}.conf"
+        dest: "/etc/wireguard/{{ wf_iface }}.conf"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Verify active configuration exists
+      ansible.builtin.stat:
+        path: "/etc/wireguard/{{ wf_iface }}.conf"
+      register: wg_config_stat
+
+    - name: Confirm active configuration permissions
+      ansible.builtin.assert:
+        that:
+          - wg_config_stat.stat.exists
+          - wg_config_stat.stat.mode == "0600"
+        fail_msg: >
+          WireGuard configuration is missing or has incorrect permissions
+          on {{ inventory_hostname }}.
+
+
+# ============================================================
+# PLAY 3: Restart WireGuard management interface
+# ============================================================
+
+- name: Restart WireGuard management interface
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tags:
+    - wireguard
+    - service
+    - restart
+
+  tasks:
+    - name: Restart WireGuard interface
+      ansible.builtin.systemd_service:
+        name: "wg-quick@wg_mgmt_ipv6"
+        state: restarted
+        enabled: true
+
+
+
+# ============================================================
+# PLAY 4: Add IPv6 host mappings to /etc/hosts
+# ============================================================
+
+- name: Configure WireGuard IPv6 host mappings
+  hosts: all
+  become: true
+  gather_facts: false
+  tags:
+    - hosts_ipv6
+
+  tasks:
+    - name: Add WireGuard IPv6 peer mappings to /etc/hosts
+      ansible.builtin.blockinfile:
+        path: /etc/hosts
+        create: true
+        marker: "# {mark} ANSIBLE MANAGED WIREGUARD IPv6 HOSTS"
+        block: "{{ lookup('template', 'files/templates/wg_mgmt_ipv6_hosts.j2') }}"
+        backup: true
+        insertafter: EOF
+      when:
+        - group_names | select('match', '^AS[0-9]+$') | list | length > 0
+        - wg_ipv6_address is defined
+

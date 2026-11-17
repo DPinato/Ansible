@@ -1,0 +1,8 @@
+
+{% for group_name in group_names | select('match', '^AS[0-9]+$') | sort %}
+{% for peer in groups[group_name] | sort %}
+{% if hostvars[peer].wg_ipv6_address is defined %}
+{{ hostvars[peer].wg_ipv6_address | regex_replace('/.*$', '') }} {{ peer }}-ipv6
+{% endif %}
+{% endfor %}
+{% endfor %}

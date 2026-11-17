@@ -1,0 +1,17 @@
+
+[Interface]
+Address = {{ wg_ipv6_address }}
+PrivateKey = {{ wg_local_private_key.content | b64decode | trim }}
+ListenPort = {{ wg_listen_port }}
+
+{% for peer in ansible_play_hosts_all | sort %}
+{% if peer != inventory_hostname %}
+[Peer]
+# {{ peer }} (AS{{ hostvars[peer].bgp_asn }})
+PublicKey = {{ lookup('file', wg_public_keys_controller_dir ~ '/' ~ peer ~ '.pub') | trim }}
+Endpoint = {{ hostvars[peer].wg_endpoint }}
+AllowedIPs = {{ hostvars[peer].wg_ipv6_address }}
+PersistentKeepalive = 25
+
+{% endif %}
+{% endfor %}
