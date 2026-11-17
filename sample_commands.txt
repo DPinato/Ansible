@@ -3,7 +3,7 @@ ansible-playbook install_packages.yaml -i hostfiles/pi_hosts.yaml
 
 ansible-playbook deploy_pi_monitor.yaml -i hostfiles/pi_hosts.yaml
 ansible-playbook update_golang.yaml -i hostfiles/pi_hosts.yaml
-ansible-playbook update_golang.yaml -i hostfiles/pi_hosts.yaml --limit pi_plex
+ansible-playbook update_golang.yaml -i hostfiles/pi_hosts.yaml --limit uk_pi_hosts
 
 ansible-playbook install_packages.yaml -i hostfiles/pi_hosts.yaml --limit pi_plex
 
@@ -16,3 +16,18 @@ ansible besozzo_pi -m ping -i hostfiles/pi_hosts.yaml
 ansible-inventory -i hostfiles/pi_hosts.yaml --graph
 ansible -i hostfiles/pi_hosts.yaml testhosts --list-hosts
 
+
+ansible -i hostfiles/pi_hosts.yaml uk_pi_hosts -m ping
+ansible-playbook -i hostfiles/pi_hosts.yaml configure_chrony.yaml --limit test_hosts
+ansible-playbook -i hostfiles/pi_hosts.yaml configure_chrony.yaml --limit uk_pi_hosts
+
+ansible-playbook -i hostfiles/pi_hosts.yaml install_docker.yaml --limit 'pi-1,pi-2,pi-3,pi-4'
+ansible-playbook -i hostfiles/pi_hosts.yaml install_apt_cache.yaml --limit apt_cache_host
+ansible-playbook -i hostfiles/pi_hosts.yaml configure_apt_proxy.yaml --limit 'uk_pi_hosts:!pi-1'
+
+ansible-playbook -i hostfiles/pi_hosts.yaml install_k3s.yaml --limit 'uk_pi_hosts:!kali-raspberrypi'
+
+ansible-playbook -i hostfiles/pi_hosts.yaml setup_wg_mgmt_ipv6.yaml --tags collect_keys --limit AS65000
+ansible-playbook -i hostfiles/pi_hosts.yaml setup_wg_mgmt_ipv6.yaml --tags configure --limit AS65000
+ansible-playbook -i hostfiles/pi_hosts.yaml setup_wg_mgmt_ipv6.yaml --tags restart --limit AS65000
+ansible-playbook -i hostfiles/pi_hosts.yaml setup_wg_mgmt_ipv6.yaml --tags hosts_ipv6 --limit AS65000
