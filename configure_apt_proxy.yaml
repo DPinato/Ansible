@@ -1,0 +1,28 @@
+- name: Configure APT cache clients
+  hosts: all
+  become: true
+  gather_facts: false
+
+  vars:
+    apt_cache_host: "pi-1.local"
+    apt_cache_port: 3142
+
+  tasks:
+    - name: Configure APT to use pi-1 for HTTP repositories
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/00aptproxy
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          Acquire::http::Proxy "http://{{ apt_cache_host }}:{{ apt_cache_port }}";
+
+    - name: Verify APT proxy configuration
+      ansible.builtin.command:
+        cmd: cat /etc/apt/apt.conf.d/00aptproxy
+      register: apt_proxy_config
+      changed_when: false
+
+    - name: Display APT proxy configuration
+      ansible.builtin.debug:
+        msg: "{{ apt_proxy_config.stdout }}"
