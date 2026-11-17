@@ -1,2 +1,3 @@
 .DS_Store
 .wg-public-keys
+kubeconfig-k3s
